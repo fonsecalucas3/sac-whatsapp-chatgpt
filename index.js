@@ -11,19 +11,21 @@ const ZAPI_URL = `https://api.z-api.io/instances/${process.env.ZAPI_INSTANCE_ID}
 app.post('/webhook', async (req, res) => {
   console.log("Mensagem recebida do Z-API:");
   console.log(JSON.stringify(req.body, null, 2));
+
+  // Diagnóstico completo
   console.log("Chaves do corpo:", Object.keys(req.body));
+  if (req.body['texto']) {
+    console.log("Chaves de texto:", Object.keys(req.body['texto']));
+  } else {
+    console.log("Campo 'texto' está ausente ou inválido");
+  }
 
-  const message =
-    req.body['texto']?.['mensagem'] ||
-    req.body['texto']?.['message'] ||
-    req.body['texto']?.['Mensagem'] ||
-    null;
+  console.log("Valor texto:", JSON.stringify(req.body['texto']));
+  console.log("Valor telefone:", req.body['telefone']);
 
-  const number =
-    req.body['telefone'] ||
-    req.body['participantPhone'] ||
-    req.body['from'] ||
-    null;
+  // Extração com fallback
+  const message = req.body['texto']?.['mensagem'] || req.body['texto']?.['message'] || req.body['texto']?.['Mensagem'] || null;
+  const number = req.body['telefone'] || req.body['participantPhone'] || req.body['from'] || req.body['chatId'] || null;
 
   console.log("Mensagem extraída:", message);
   console.log("Telefone extraído:", number);
