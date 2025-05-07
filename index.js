@@ -12,7 +12,7 @@ app.post('/webhook', async (req, res) => {
   console.log("Mensagem recebida do Z-API:");
   console.log(JSON.stringify(req.body, null, 2));
 
-  const message = req.body.texto?.mensagem || req.body.texto?.message;
+  const message = typeof req.body.texto === 'object' ? req.body.texto.mensagem : null;
   const number = req.body.telefone;
 
   if (!message || !number) {
