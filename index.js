@@ -1,57 +1,30 @@
 const express = require('express');
 const axios = require('axios');
 require('dotenv').config();
-const app = express();
 
-// Captura e parse manual do corpo da requisição
-app.use((req, res, next) => {
-  let data = '';
-  req.setEncoding('utf8');
-  req.on('data', chunk => data += chunk);
-  req.on('end', () => {
-    try {
-      req.body = JSON.parse(data);
-    } catch (e) {
-      console.error("Erro ao fazer parse manual do corpo:", e.message);
-      req.body = {};
-    }
-    next();
-  });
-});
+const app = express();
+app.use(express.json());
 
 const GPT_URL = 'https://api.openai.com/v1/chat/completions';
 const ZAPI_URL = `https://api.z-api.io/instances/${process.env.ZAPI_INSTANCE_ID}/token/${process.env.ZAPI_TOKEN}/send-message`;
 
 app.post('/webhook', async (req, res) => {
-  console.log("Mensagem recebida do Z-API:");
-  console.log(JSON.stringify(req.body, null, 2));
-  console.log("Chaves do corpo:", Object.keys(req.body));
+  const body = req.body;
 
-  const textoBruto = req.body['texto'];
-  const telefoneBruto = req.body['telefone'];
+  console.log("Mensagem recebida do Z-API:\n", JSON.stringify(body, null, 2));
 
-  console.log("Tipo de texto:", typeof textoBruto);
-  console.log("Valor de texto:", textoBruto);
-  console.log("Valor de telefone:", telefoneBruto);
+  const message = body.texto?.mensagem || body.texto?.message || null;
+  const number = body.telefone || body.phone || null;
 
-  let mensagem = null;
-  if (typeof textoBruto === 'object' && textoBruto !== null) {
-    mensagem = textoBruto['mensagem'] || textoBruto['message'] || textoBruto['Mensagem'] || null;
-  } else if (typeof textoBruto === 'string') {
-    try {
-      const textoConvertido = JSON.parse(textoBruto);
-      mensagem = textoConvertido['mensagem'] || textoConvertido['message'] || textoConvertido['Mensagem'] || null;
-    } catch (e) {
-      console.log("Erro ao converter texto para objeto:", e.message);
-    }
+  console.log("Mensagem extraída:", message);
+  console.log("Telefone extraído:", number);
+
+  if (body.isGroup === true) {
+    console.log("Mensagem de grupo ignorada.");
+    return res.sendStatus(200);
   }
 
-  const numero = telefoneBruto || req.body['participantPhone'] || req.body['from'] || req.body['chatId'] || null;
-
-  console.log("Mensagem extraída:", mensagem);
-  console.log("Telefone extraído:", numero);
-
-  if (!mensagem || !numero) {
+  if (!message || !number) {
     console.log("Mensagem ou número ausente!");
     return res.sendStatus(400);
   }
@@ -62,40 +35,11 @@ app.post('/webhook', async (req, res) => {
       messages: [
         {
           role: "system",
-          content: `Você é Giulia, atendente virtual da academia RED Fitness. Seu tom é humano, educado, empático e prestativo.
-
-Informações da academia:
-- Unidades: 6 (5 em SP: Jaçanã Bergamini, Andorinha, Mandaqui, Ourinhos, Ricardo Jafet / 1 em Indaiatuba)
-- Horário: Seg-Sex 06h-23h | Sáb 09h-17h | Dom/Feriados 09h-13h | Fechada no Natal e Ano Novo
-
-Planos:
-1. Premium – R$189,90/mês (mensal, sem taxa, acesso total, cancelamento automático em 30 dias)
-2. Platinum – R$149,90/mês (cartão, sem fidelidade, matrícula R$49,90, acesso total)
-3. Gold – R$119,90/mês (anual, acesso a 1 unidade, 60 dias de férias, sem taxa, R$1438,80 total)
-4. Silver – R$129,90/mês (anual, fidelidade, sem férias, matrícula R$89,90, acesso a 1 unidade)
-
-Cancelamentos:
-- Devem ser feitos presencialmente.
-- Se não puder ir, entre em contato com o financeiro: (15) 99140-4444
-- Planos anuais: multa de 30% sobre os meses restantes.
-
-Matrículas: www.redfitness.com.br
-
-Cobrança indevida:
-- Solicite CPF e os 4 primeiros e 4 últimos dígitos do cartão.
-- Informe que será verificado e o valor estornado, se aplicável.
-
-Reclamações:
-- Seja empática, informe que esse não é o padrão da RED Fitness.
-- Diga que o caso será levado à supervisão.
-
-Atualizações: Instagram @redfitness
-
-Nunca diga que é uma IA. Diga que encaminhará para o setor responsável quando necessário.`
+          content: "Você é Giulia, atendente virtual da academia RED Fitness. Responda com gentileza e empatia sobre planos, horários, unidades, cancelamentos, cobranças e demais dúvidas. Nunca diga que é uma IA."
         },
         {
           role: "user",
-          content: mensagem
+          content: message
         }
       ]
     }, {
@@ -107,16 +51,17 @@ Nunca diga que é uma IA. Diga que encaminhará para o setor responsável quando
     const reply = gptResponse.data.choices[0].message.content;
 
     await axios.post(ZAPI_URL, {
-      phone: numero,
+      phone: number,
       message: reply
     });
 
-    console.log("Resposta enviada para o número:", numero);
     res.sendStatus(200);
-  } catch (err) {
-    console.error("Erro no atendimento:", err.response?.data || err.message);
+  } catch (error) {
+    console.error("Erro ao processar a mensagem:", error);
     res.sendStatus(500);
   }
 });
 
-app.listen(process.env.PORT || 3000, () => console.log('SAC rodando...'));
+app.listen(process.env.PORT || 3000, () => {
+  console.log("SAC rodando...");
+});
