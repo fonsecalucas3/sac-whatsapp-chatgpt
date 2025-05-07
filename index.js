@@ -11,20 +11,31 @@ const ZAPI_URL = `https://api.z-api.io/instances/${process.env.ZAPI_INSTANCE_ID}
 app.post('/webhook', async (req, res) => {
   console.log("Mensagem recebida do Z-API:");
   console.log(JSON.stringify(req.body, null, 2));
+  console.log("Tipo de texto:", typeof req.body.texto);
 
-  // Ignorar mensagens enviadas por grupos ou pela própria API
-  if (req.body.isGroup || req.body.fromApi) {
-    console.log("Mensagem ignorada (grupo ou da própria API)");
-    return res.sendStatus(200);
+  if (req.body.texto && typeof req.body.texto === 'object') {
+    console.log("Chaves de texto:", Object.keys(req.body.texto));
   }
 
-  // Captura segura da mensagem
+  console.log("Chaves do corpo:", Object.keys(req.body));
+
+  // Verifica e tenta múltiplas formas de obter a mensagem
   let message = null;
   if (typeof req.body.texto === 'object') {
-    message = req.body.texto.mensagem || req.body.texto.message;
+    message =
+      req.body.texto.mensagem ||
+      req.body.texto.message ||
+      req.body.texto.Mensagem ||
+      null;
   }
 
-  const number = req.body.telefone;
+  // Verifica e tenta múltiplas formas de obter o número
+  const number =
+    req.body.telefone ||
+    req.body.participantPhone ||
+    req.body.from ||
+    req.body.chatId ||
+    null;
 
   console.log("Mensagem extraída:", message);
   console.log("Telefone extraído:", number);
