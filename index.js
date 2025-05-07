@@ -12,8 +12,22 @@ app.post('/webhook', async (req, res) => {
   console.log("Mensagem recebida do Z-API:");
   console.log(JSON.stringify(req.body, null, 2));
 
-  const message = typeof req.body.texto === 'object' ? req.body.texto.mensagem : null;
+  // Ignorar mensagens enviadas por grupos ou pela própria API
+  if (req.body.isGroup || req.body.fromApi) {
+    console.log("Mensagem ignorada (grupo ou da própria API)");
+    return res.sendStatus(200);
+  }
+
+  // Captura segura da mensagem
+  let message = null;
+  if (typeof req.body.texto === 'object') {
+    message = req.body.texto.mensagem || req.body.texto.message;
+  }
+
   const number = req.body.telefone;
+
+  console.log("Mensagem extraída:", message);
+  console.log("Telefone extraído:", number);
 
   if (!message || !number) {
     console.log("Mensagem ou número ausente!");
@@ -75,6 +89,7 @@ Nunca diga que é uma IA. Diga que encaminhará para o setor responsável quando
       message: reply
     });
 
+    console.log("Resposta enviada para o número:", number);
     res.sendStatus(200);
   } catch (err) {
     console.error("Erro no atendimento:", err.response?.data || err.message);
