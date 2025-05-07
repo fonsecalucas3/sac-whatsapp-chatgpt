@@ -11,26 +11,33 @@ const ZAPI_URL = `https://api.z-api.io/instances/${process.env.ZAPI_INSTANCE_ID}
 app.post('/webhook', async (req, res) => {
   console.log("Mensagem recebida do Z-API:");
   console.log(JSON.stringify(req.body, null, 2));
-
-  // Diagnóstico completo
   console.log("Chaves do corpo:", Object.keys(req.body));
-  if (req.body['texto']) {
-    console.log("Chaves de texto:", Object.keys(req.body['texto']));
-  } else {
-    console.log("Campo 'texto' está ausente ou inválido");
+
+  const textoBruto = req.body['texto'];
+  const telefoneBruto = req.body['telefone'];
+
+  console.log("Tipo de texto:", typeof textoBruto);
+  console.log("Valor de texto:", textoBruto);
+  console.log("Valor de telefone:", telefoneBruto);
+
+  let mensagem = null;
+  if (typeof textoBruto === 'object' && textoBruto !== null) {
+    mensagem = textoBruto['mensagem'] || textoBruto['message'] || textoBruto['Mensagem'] || null;
+  } else if (typeof textoBruto === 'string') {
+    try {
+      const textoConvertido = JSON.parse(textoBruto);
+      mensagem = textoConvertido['mensagem'] || textoConvertido['message'] || textoConvertido['Mensagem'] || null;
+    } catch (e) {
+      console.log("Erro ao converter texto para objeto:", e.message);
+    }
   }
 
-  console.log("Valor texto:", JSON.stringify(req.body['texto']));
-  console.log("Valor telefone:", req.body['telefone']);
+  const numero = telefoneBruto || req.body['participantPhone'] || req.body['from'] || req.body['chatId'] || null;
 
-  // Extração com fallback
-  const message = req.body['texto']?.['mensagem'] || req.body['texto']?.['message'] || req.body['texto']?.['Mensagem'] || null;
-  const number = req.body['telefone'] || req.body['participantPhone'] || req.body['from'] || req.body['chatId'] || null;
+  console.log("Mensagem extraída:", mensagem);
+  console.log("Telefone extraído:", numero);
 
-  console.log("Mensagem extraída:", message);
-  console.log("Telefone extraído:", number);
-
-  if (!message || !number) {
+  if (!mensagem || !numero) {
     console.log("Mensagem ou número ausente!");
     return res.sendStatus(400);
   }
@@ -74,7 +81,7 @@ Nunca diga que é uma IA. Diga que encaminhará para o setor responsável quando
         },
         {
           role: "user",
-          content: message
+          content: mensagem
         }
       ]
     }, {
@@ -86,11 +93,11 @@ Nunca diga que é uma IA. Diga que encaminhará para o setor responsável quando
     const reply = gptResponse.data.choices[0].message.content;
 
     await axios.post(ZAPI_URL, {
-      phone: number,
+      phone: numero,
       message: reply
     });
 
-    console.log("Resposta enviada para o número:", number);
+    console.log("Resposta enviada para o número:", numero);
     res.sendStatus(200);
   } catch (err) {
     console.error("Erro no atendimento:", err.response?.data || err.message);
