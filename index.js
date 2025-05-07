@@ -3,7 +3,21 @@ const axios = require('axios');
 require('dotenv').config();
 
 const app = express();
-app.use(express.json());
+
+// Novo: aceita qualquer tipo de body como texto
+app.use(express.text({ type: "*/*" }));
+
+// Novo: tenta forçar parsing do body em JSON
+app.use((req, res, next) => {
+  try {
+    if (typeof req.body === 'string') {
+      req.body = JSON.parse(req.body);
+    }
+  } catch (e) {
+    console.log("Erro ao tentar parsear body como JSON:", e.message);
+  }
+  next();
+});
 
 const GPT_URL = 'https://api.openai.com/v1/chat/completions';
 const ZAPI_URL = `https://api.z-api.io/instances/${process.env.ZAPI_INSTANCE_ID}/token/${process.env.ZAPI_TOKEN}/send-message`;
