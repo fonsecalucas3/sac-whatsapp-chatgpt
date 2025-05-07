@@ -10,18 +10,21 @@ const ZAPI_URL = `https://api.z-api.io/instances/${process.env.ZAPI_INSTANCE_ID}
 
 app.post('/webhook', async (req, res) => {
   console.log("Mensagem recebida do Z-API:");
+  console.log(JSON.stringify(req.body, null, 2));
 
-  const body = req.body;
-  console.log(JSON.stringify(body, null, 2));
+  let message = null;
+  let number = null;
 
-  // Tentativa robusta de extração
-  const message = body.texto?.mensagem || body.texto?.message || null;
-  const phone = body.telefone || body.connectedPhone || null;
+  if (req.body.texto) {
+    message = req.body.texto.mensagem || req.body.texto.message || null;
+  }
+
+  number = req.body.telefone || req.body.participantPhone || null;
 
   console.log("Mensagem extraída:", message);
-  console.log("Telefone extraído:", phone);
+  console.log("Telefone extraído:", number);
 
-  if (!message || !phone) {
+  if (!message || !number) {
     console.log("Mensagem ou número ausente!");
     return res.sendStatus(400);
   }
@@ -30,7 +33,7 @@ app.post('/webhook', async (req, res) => {
     const gptResponse = await axios.post(GPT_URL, {
       model: "gpt-3.5-turbo",
       messages: [
-        { role: "system", content: "Você é Giulia, atendente virtual da RED Fitness. Responda com empatia e clareza dúvidas sobre planos, unidades, horários, cancelamentos e cobranças." },
+        { role: "system", content: "Você é Giulia, uma atendente virtual da academia RED Fitness. Responda com educação, empatia e clareza sobre planos, horários, unidades, cancelamentos e cobranças." },
         { role: "user", content: message }
       ],
     }, {
@@ -38,14 +41,15 @@ app.post('/webhook', async (req, res) => {
     });
 
     const reply = gptResponse.data.choices[0].message.content;
+
     await axios.post(ZAPI_URL, {
-      phone,
+      phone: number,
       message: reply,
     });
 
     res.sendStatus(200);
   } catch (err) {
-    console.error("Erro ao responder:", err);
+    console.error("Erro no processamento:", err.message);
     res.sendStatus(500);
   }
 });
