@@ -9,17 +9,16 @@ const GPT_URL = 'https://api.openai.com/v1/chat/completions';
 const ZAPI_URL = `https://api.z-api.io/instances/${process.env.ZAPI_INSTANCE_ID}/token/${process.env.ZAPI_TOKEN}/send-message`;
 
 app.post('/webhook', async (req, res) => {
-  const body = req.body;
-  console.log("Mensagem recebida do Z-API:");
-  console.log(JSON.stringify(body, null, 2));
+  console.log("Mensagem recebida do Z-API:
+", req.body);
 
-  const message = body.text?.message || body.texto?.mensagem || null;
-  const number = body.telefone || body.participantPhone || null;
+  const msg = req.body.texto?.mensagem || req.body.texto?.message || null;
+  const number = req.body.telefone || req.body.participantPhone || null;
 
-  console.log("Mensagem extraída:", message);
+  console.log("Mensagem extraída:", msg);
   console.log("Telefone extraído:", number);
 
-  if (!message || !number) {
+  if (!msg || !number) {
     console.log("Mensagem ou número ausente!");
     return res.sendStatus(400);
   }
@@ -30,12 +29,9 @@ app.post('/webhook', async (req, res) => {
       messages: [
         {
           role: "system",
-          content: "Você é Giulia, atendente virtual da academia RED Fitness. Responda de forma gentil, prestativa e clara, explicando planos, horários, unidades, cancelamentos, cobranças, e fornecendo ajuda com empatia e respeito. Nunca diga que é um robô ou IA."
+          content: "Você é Giulia, atendente virtual da academia RED Fitness. Fale com empatia e clareza sobre planos, horários, unidades, cancelamentos e cobranças. Siga a postura da academia e diga que repassará ao setor responsável se necessário."
         },
-        {
-          role: "user",
-          content: message
-        }
+        { role: "user", content: msg }
       ],
     }, {
       headers: { Authorization: `Bearer ${process.env.OPENAI_API_KEY}` }
@@ -50,7 +46,7 @@ app.post('/webhook', async (req, res) => {
 
     res.sendStatus(200);
   } catch (err) {
-    console.error("Erro ao processar resposta:", err.response?.data || err.message);
+    console.error("Erro no processamento:", err.response?.data || err.message);
     res.sendStatus(500);
   }
 });
