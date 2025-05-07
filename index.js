@@ -10,19 +10,14 @@ const ZAPI_URL = `https://api.z-api.io/instances/${process.env.ZAPI_INSTANCE_ID}
 
 app.post('/webhook', async (req, res) => {
   const body = req.body;
+  console.log("Mensagem recebida do Z-API:");
+  console.log(JSON.stringify(body, null, 2));
 
-  console.log("Mensagem recebida do Z-API:\n", JSON.stringify(body, null, 2));
-
-  const message = body.texto?.mensagem || body.texto?.message || null;
-  const number = body.telefone || body.phone || null;
+  const message = body.text?.message || body.texto?.mensagem || null;
+  const number = body.telefone || body.participantPhone || null;
 
   console.log("Mensagem extraída:", message);
   console.log("Telefone extraído:", number);
-
-  if (body.isGroup === true) {
-    console.log("Mensagem de grupo ignorada.");
-    return res.sendStatus(200);
-  }
 
   if (!message || !number) {
     console.log("Mensagem ou número ausente!");
@@ -35,33 +30,29 @@ app.post('/webhook', async (req, res) => {
       messages: [
         {
           role: "system",
-          content: "Você é Giulia, atendente virtual da academia RED Fitness. Responda com gentileza e empatia sobre planos, horários, unidades, cancelamentos, cobranças e demais dúvidas. Nunca diga que é uma IA."
+          content: "Você é Giulia, atendente virtual da academia RED Fitness. Responda de forma gentil, prestativa e clara, explicando planos, horários, unidades, cancelamentos, cobranças, e fornecendo ajuda com empatia e respeito. Nunca diga que é um robô ou IA."
         },
         {
           role: "user",
           content: message
         }
-      ]
+      ],
     }, {
-      headers: {
-        Authorization: `Bearer ${process.env.OPENAI_API_KEY}`
-      }
+      headers: { Authorization: `Bearer ${process.env.OPENAI_API_KEY}` }
     });
 
     const reply = gptResponse.data.choices[0].message.content;
 
     await axios.post(ZAPI_URL, {
       phone: number,
-      message: reply
+      message: reply,
     });
 
     res.sendStatus(200);
-  } catch (error) {
-    console.error("Erro ao processar a mensagem:", error);
+  } catch (err) {
+    console.error("Erro ao processar resposta:", err.response?.data || err.message);
     res.sendStatus(500);
   }
 });
 
-app.listen(process.env.PORT || 3000, () => {
-  console.log("SAC rodando...");
-});
+app.listen(process.env.PORT || 3000, () => console.log('SAC rodando...'));
