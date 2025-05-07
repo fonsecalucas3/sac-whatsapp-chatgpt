@@ -1,22 +1,22 @@
 const express = require('express');
 const axios = require('axios');
 require('dotenv').config();
-
 const app = express();
 
-// Novo: aceita qualquer tipo de body como texto
-app.use(express.text({ type: "*/*" }));
-
-// Novo: tenta forçar parsing do body em JSON
+// Captura e parse manual do corpo da requisição
 app.use((req, res, next) => {
-  try {
-    if (typeof req.body === 'string') {
-      req.body = JSON.parse(req.body);
+  let data = '';
+  req.setEncoding('utf8');
+  req.on('data', chunk => data += chunk);
+  req.on('end', () => {
+    try {
+      req.body = JSON.parse(data);
+    } catch (e) {
+      console.error("Erro ao fazer parse manual do corpo:", e.message);
+      req.body = {};
     }
-  } catch (e) {
-    console.log("Erro ao tentar parsear body como JSON:", e.message);
-  }
-  next();
+    next();
+  });
 });
 
 const GPT_URL = 'https://api.openai.com/v1/chat/completions';
