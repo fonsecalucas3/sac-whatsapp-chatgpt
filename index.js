@@ -12,8 +12,8 @@ app.post('/webhook', async (req, res) => {
   console.log("Mensagem recebida do Z-API:");
   console.log(JSON.stringify(req.body, null, 2));
 
-  const message = req.body.texto?.mensagem;
-  const number = req.body.telefone;
+  const message = req.body?.texto?.mensagem;
+  const number = req.body?.telefone;
 
   console.log("Mensagem extraída:", message);
   console.log("Telefone extraído:", number);
@@ -27,35 +27,25 @@ app.post('/webhook', async (req, res) => {
     const gptResponse = await axios.post(GPT_URL, {
       model: "gpt-3.5-turbo",
       messages: [
-        {
-          role: "system",
-          content: "Você é Giulia, atendente virtual da academia RED Fitness. Responda com empatia, educação e precisão sobre planos, horários, unidades e cobranças. Nunca mencione que é uma IA."
-        },
-        {
-          role: "user",
-          content: message
-        }
-      ]
+        { role: "system", content: "Você é a Giulia, assistente virtual da academia RED Fitness. Responda de forma educada, gentil e clara sobre planos, horários, unidades e questões administrativas." },
+        { role: "user", content: message }
+      ],
     }, {
-      headers: {
-        Authorization: `Bearer ${process.env.OPENAI_API_KEY}`
-      }
+      headers: { Authorization: `Bearer ${process.env.OPENAI_API_KEY}` }
     });
 
     const reply = gptResponse.data.choices[0].message.content;
 
     await axios.post(ZAPI_URL, {
       phone: number,
-      message: reply
+      message: reply,
     });
 
     res.sendStatus(200);
   } catch (err) {
-    console.error("Erro durante o processamento:", err);
+    console.error("Erro ao processar:", err);
     res.sendStatus(500);
   }
 });
 
-app.listen(process.env.PORT || 3000, () => {
-  console.log('SAC rodando...');
-});
+app.listen(process.env.PORT || 3000, () => console.log('SAC rodando...'));
